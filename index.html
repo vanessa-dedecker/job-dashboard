@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Missions — Vanessa De Decker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:14px}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-thumb{background:#b0bec5;border-radius:3px}
+  ::-webkit-scrollbar-track{background:#f0f4f8}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .card-anim{animation:fadeIn .25s ease both}
+  .modal-anim{animation:slideUp .2s ease both}
+  .toast-in{animation:toastIn .3s ease both}
+  .toast-out{animation:toastOut .3s ease forwards}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ══════════════════════════════════════════════════════════════════
+// DONNÉES
+// ══════════════════════════════════════════════════════════════════
+const OFFERS = [
+  {
+    id:1, cat:"kyc",
+    titre:"Chargé de Conformité LCB-FT & Contrôles",
+    plateforme:"Free-Work", contact:"Mon Consultant Indépendant",
+    entreprise:"Banque (anonyme)", secteur:"Banque / Finance",
+    duree:"3-6 mois", tjm:"350–450 €/j",
+    remote:"Full Remote (2j/sem min)", type:"Freelance",
+    modele:"B",
+    fiabilite:"verifier", fiabiliteNote:"Entreprise non divulguée via Free-Work — demander l'identité avant tout engagement",
+    lien:"https://www.free-work.com/fr/tech-it/charge-daffaire/job-mission/charge-de-conformite-lcb-ft-et-controles",
+    sujet:"Profil KYC & LCB-FT — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe vous contacte suite à votre annonce Free-Work - Chargé de Conformité LCB-FT concernant un besoin en conformité KYC / LCB-FT.\n\nAvec 11 ans d'expérience chez BNP Paribas (Front & Middle Office, KYC, crédits documentaires) et 4 ans au Groupe BPCE (Services Généraux, gestion contractuelle), je maîtrise :\n• L'analyse et validation de dossiers KYC selon les exigences réglementaires\n• Le dispositif LCB-FT et les procédures Bâle II/III\n• Le reporting conformité et la coordination avec les équipes juridiques\n\nDisponible dès mai 2026, uniquement en full remote.\n\nSeriez-vous ouvert à un échange pour voir si mon profil correspond à votre besoin ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste KYC · LCB-FT | Full Remote | Disponible mai 2026`
+  },
+  {
+    id:2, cat:"kyc",
+    titre:"Analyste KYC / Business Analyst Conformité",
+    plateforme:"Free-Work", contact:"Grand groupe bancaire (recruteur)",
+    entreprise:"Grand groupe bancaire", secteur:"Banque / Finance",
+    duree:"6-12 mois", tjm:"400–500 €/j",
+    remote:"Full Remote (projet ML/IA)", type:"Freelance",
+    modele:"B",
+    fiabilite:"verifier", fiabiliteNote:"Groupe bancaire non identifié — vérifier la légitimité de l'annonce avant de postuler",
+    lien:"https://www.free-work.com/fr/tech-it/jobs/know-your-customer-kyc",
+    lienNote:"⚠️ Lien vers la page générale KYC — rechercher l'offre manuellement",
+    sujet:"Profil KYC & LCB-FT — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe vous contacte suite à votre mission Free-Work - Analyste KYC / BA conformité concernant un besoin en conformité KYC / LCB-FT.\n\nAvec 11 ans d'expérience chez BNP Paribas (Front & Middle Office, KYC, crédits documentaires) et 4 ans au Groupe BPCE (Services Généraux, gestion contractuelle), je maîtrise :\n• L'analyse et validation de dossiers KYC selon les exigences réglementaires\n• Le dispositif LCB-FT et les procédures Bâle II/III\n• Le reporting conformité et la coordination avec les équipes juridiques\n\nDisponible dès mai 2026, uniquement en full remote.\n\nSeriez-vous ouvert à un échange pour voir si mon profil correspond à votre besoin ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste KYC · LCB-FT | Full Remote | Disponible mai 2026`
+  },
+  {
+    id:3, cat:"dmos",
+    titre:"Mission DMOS / HCP — Management de transition",
+    plateforme:"Michael Page", contact:"Consultant Healthcare Michael Page",
+    entreprise:"Laboratoires / Dispositif Médical", secteur:"Dispositif Médical / Pharma",
+    duree:"3-12 mois", tjm:"450–600 €/j",
+    remote:"Full Remote possible", type:"Freelance",
+    modele:"A",
+    fiabilite:"verifier", fiabiliteNote:"Client final anonyme via Michael Page — cabinet reconnu mais entreprise non révélée à ce stade",
+    lien:"https://www.michaelpage.fr/interim-management-de-transition",
+    lienNote:"⚠️ Lien vers la page Management de Transition — rechercher l'offre DMOS manuellement",
+    sujet:"Expertise DMOS & Conventions HCP — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe me permets de vous contacter car votre besoin dans le secteur des dispositifs médicaux correspond exactement à mon domaine d'expertise.\n\nForte de 3 ans d'expérience chez Medtronic et Abbott en tant que spécialiste DMOS, je gère en autonomie complète :\n• La conformité Loi Anti-Cadeaux / DMOS et les conventions HCP\n• Les déclarations réglementaires Idahe & EPS (CNOM, ARS) — zéro non-conformité\n• La coordination multi-acteurs (équipes commerciales, agences événementielles, APS)\n\nDisponible dès mai 2026, exclusivement en full remote.\n\nSeriez-vous disponible pour un échange rapide ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste DMOS · KYC | Full Remote | Disponible mai 2026`
+  },
+  {
+    id:6, cat:"kyc",
+    titre:"Chargé de Conformité LCB-FT et Contrôles",
+    plateforme:"Collective.work", contact:"Client bancaire (via Collective.work)",
+    entreprise:"Banque (via Collective.work)", secteur:"Banque / Finance",
+    duree:"3-6 mois", tjm:"Jusqu'à 636 €/j HT ⭐",
+    remote:"Paris (télétravail partiel)", type:"Freelance",
+    modele:"B",
+    fiabilite:"verifier", fiabiliteNote:"Banque anonyme via Collective.work — plateforme sérieuse mais vérifier les conditions de paiement et l'identité du client",
+    lien:"https://www.collective.work/job/charge-de-conformite-lcb-ft-et-controles-r4ko",
+    sujet:"Profil KYC & LCB-FT — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe vous contacte suite à votre annonce Collective.work - Chargé de Conformité LCB-FT concernant un besoin en conformité KYC / LCB-FT.\n\nAvec 11 ans d'expérience chez BNP Paribas (Front & Middle Office, KYC, crédits documentaires) et 4 ans au Groupe BPCE (Services Généraux, gestion contractuelle), je maîtrise :\n• L'analyse et validation de dossiers KYC selon les exigences réglementaires\n• Le dispositif LCB-FT et les procédures Bâle II/III\n• Le reporting conformité et la coordination avec les équipes juridiques\n\nDisponible dès mai 2026, uniquement en full remote.\n\nSeriez-vous ouvert à un échange pour voir si mon profil correspond à votre besoin ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste KYC · LCB-FT | Full Remote | Disponible mai 2026`
+  },
+  {
+    id:7, cat:"kyc",
+    titre:"Chargé de conformité LCB-FT — Secteur Assurance",
+    plateforme:"Collective.work", contact:"Client assurance (via Collective.work)",
+    entreprise:"Assurance (La Rochelle)", secteur:"Assurance",
+    duree:"Non communiquée", tjm:"Non communiqué",
+    remote:"À vérifier (client La Rochelle)", type:"Freelance",
+    modele:"B",
+    fiabilite:"verifier", fiabiliteNote:"Client assurance anonyme via Collective.work — vérifier les conditions de remote avant candidature",
+    lien:"https://www.collective.work/job/charge-de-conformite-lcb-ft-secteur-assurance-skri",
+    sujet:"Profil KYC & LCB-FT — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe vous contacte suite à votre annonce Collective.work concernant un besoin en conformité KYC / LCB-FT dans le secteur de l'assurance.\n\nAvec 11 ans d'expérience chez BNP Paribas (Front & Middle Office, KYC, crédits documentaires) et 4 ans au Groupe BPCE (Services Généraux, gestion contractuelle), je maîtrise :\n• L'analyse et validation de dossiers KYC selon les exigences réglementaires\n• Le dispositif LCB-FT et les procédures Bâle II/III\n• Le reporting conformité et la coordination avec les équipes juridiques\n\nDisponible dès mai 2026, uniquement en full remote.\n\nSeriez-vous ouvert à un échange pour voir si mon profil correspond à votre besoin ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste KYC · LCB-FT | Full Remote | Disponible mai 2026`
+  },
+  {
+    id:8, cat:"kyc",
+    titre:"Responsable Conformité Projets — Secteur Assurance (Niort)",
+    plateforme:"Collective.work", contact:"Client assurance Niort (via Collective.work)",
+    entreprise:"Assurance (Niort / 79)", secteur:"Assurance",
+    duree:"Non communiquée", tjm:"Non communiqué",
+    remote:"À vérifier (client Niort)", type:"Freelance",
+    modele:"B",
+    fiabilite:"verifier", fiabiliteNote:"Client assurance anonyme à Niort via Collective.work — vérifier conditions remote. Niort = hub assurance (MAIF, MACIF, Groupama) → possibilité télétravail fort",
+    lien:"https://www.collective.work/job/responsable-des-projets-conformite-secteur-assurance-niort-uesj",
+    sujet:"Profil KYC & LCB-FT — disponible mai 2026, full remote",
+    message:`Bonjour [Prénom],\n\nJe vous contacte suite à votre annonce Collective.work concernant votre besoin en conformité et gestion de projets LCB-FT dans le secteur de l'assurance (Niort).\n\nAvec 11 ans d'expérience chez BNP Paribas (Front & Middle Office, KYC, crédits documentaires) et 4 ans au Groupe BPCE (Services Généraux, gestion contractuelle), je maîtrise :\n• L'analyse et validation de dossiers KYC selon les exigences réglementaires\n• Le dispositif LCB-FT et les procédures Bâle II/III\n• La gestion de projets conformité et le reporting réglementaire\n\nDisponible dès mai 2026, en full remote.\n\nSeriez-vous ouvert à un échange ?\n\nBien cordialement,\nVanessa De Decker\nSpécialiste KYC · LCB-FT | Full Remote | Disponible mai 2026`
+  }
+];
+
+// ══════════════════════════════════════════════════════════════════
+// CONSTANTES
+// ══════════════════════════════════════════════════════════════════
+const LS_KEY = 'suivi_vanessa_2026';
+
+const CAT_META = {
+  kyc:      { label:'🏦 KYC / LCB-FT',        color:'#2E75B6', bg:'#D6E4F0' },
+  dmos:     { label:'💊 DMOS / Pharma ⭐',     color:'#1E7145', bg:'#E2EFDA' },
+  contrats: { label:'📄 Gestion Contrats ⭐',  color:'#7B3F9E', bg:'#F3E8FF' },
+  admin:    { label:'🗂️ Gestion Admin',         color:'#C55A11', bg:'#FCE4D6' },
+};
+
+const STATUT_META = {
+  'À contacter' : { bg:'#FFF3CD', color:'#856404', icon:'📋' },
+  'Non contacté': { bg:'#E8E8E8', color:'#666',    icon:'🚫' },
+  'Contacté'    : { bg:'#D4EDDA', color:'#155724', icon:'✅' },
+  'Relancé'     : { bg:'#CCE5FF', color:'#004085', icon:'🔄' },
+  'Entretien'   : { bg:'#F3E8FF', color:'#4A1870', icon:'📞' },
+  'Proposition' : { bg:'#D1ECF1', color:'#117A8B', icon:'🤝' },
+  'Accepté'     : { bg:'#C3E6CB', color:'#155724', icon:'🎉' },
+  'Refus'       : { bg:'#F8D7DA', color:'#721C24', icon:'❌' },
+  'Sans réponse': { bg:'#E2E3E5', color:'#383D41', icon:'📭' },
+};
+
+const FIABILITE_META = {
+  fiable:   { label:'✅ Fiable',      color:'#155724', bg:'#D4EDDA' },
+  verifier: { label:'⚠️ À vérifier', color:'#856404', bg:'#FFF3CD' },
+  prudence: { label:'❌ Prudence',    color:'#721C24', bg:'#F8D7DA' },
+  inconnu:  { label:'❓ Inconnu',     color:'#666',    bg:'#E8E8E8' },
+};
+
+const C = {
+  navy:    '#1F3864',
+  navyDk:  '#162B50',
+  blue:    '#2E75B6',
+  gold:    '#C9A227',
+  white:   '#FFFFFF',
+  grey:    '#f0f4f8',
+  greyMid: '#e2e8f0',
+  text:    '#1a1a2e',
+  textSub: '#64748b',
+};
+
+// ══════════════════════════════════════════════════════════════════
+// LOCAL STORAGE
+// ══════════════════════════════════════════════════════════════════
+function loadStatuts() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveStatuts(data) {
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : TOAST
+// ══════════════════════════════════════════════════════════════════
+function Toast({ toasts }) {
+  return (
+    <div style={{ position:'fixed', bottom:24, right:24, zIndex:9999, display:'flex', flexDirection:'column', gap:8 }}>
+      {toasts.map(t => (
+        <div key={t.id} className={t.leaving ? 'toast-out' : 'toast-in'} style={{
+          background: t.type==='success' ? '#1E7145' : t.type==='info' ? C.blue : '#721C24',
+          color:'#fff', padding:'10px 18px', borderRadius:10, fontSize:'.85rem',
+          fontWeight:600, boxShadow:'0 4px 16px rgba(0,0,0,.2)', maxWidth:280,
+          display:'flex', alignItems:'center', gap:8
+        }}>
+          {t.type==='success'?'✅':t.type==='info'?'ℹ️':'❌'} {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : BADGE STATUT
+// ══════════════════════════════════════════════════════════════════
+function StatutBadge({ statut, small }) {
+  const m = STATUT_META[statut] || STATUT_META['À contacter'];
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:4,
+      background:m.bg, color:m.color,
+      padding: small ? '2px 8px' : '4px 10px',
+      borderRadius:20, fontSize: small ? '.7rem' : '.78rem',
+      fontWeight:700, whiteSpace:'nowrap'
+    }}>
+      {m.icon} {statut}
+    </span>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : MODAL MESSAGE
+// ══════════════════════════════════════════════════════════════════
+function MessageModal({ offer, onClose, onToast }) {
+  const [copied, setCopied] = useState(false);
+  const textRef = useRef();
+
+  useEffect(() => {
+    const onKey = e => { if(e.key==='Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(offer.message);
+    setCopied(true);
+    onToast('Message copié !', 'success');
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const mailto = () => {
+    const b = encodeURIComponent(offer.message);
+    const s = encodeURIComponent(offer.sujet);
+    window.location.href = `mailto:?subject=${s}&body=${b}`;
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:16
+    }}>
+      <div onClick={e=>e.stopPropagation()} className="modal-anim" style={{
+        background:'#fff', borderRadius:16, width:'100%', maxWidth:640,
+        maxHeight:'90vh', display:'flex', flexDirection:'column',
+        boxShadow:'0 20px 60px rgba(0,0,0,.25)'
+      }}>
+        {/* Header */}
+        <div style={{ background:C.navy, padding:'18px 22px', borderRadius:'16px 16px 0 0', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+          <div>
+            <div style={{ color:C.gold, fontWeight:700, fontSize:'1rem' }}>{offer.titre}</div>
+            <div style={{ color:'rgba(255,255,255,.7)', fontSize:'.78rem', marginTop:3 }}>
+              {offer.plateforme} · {offer.entreprise} · {offer.tjm}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer', fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
+
+        {/* Objet */}
+        <div style={{ padding:'14px 22px 0', borderBottom:`1px solid ${C.greyMid}` }}>
+          <div style={{ fontSize:'.72rem', color:C.textSub, fontWeight:600, textTransform:'uppercase', letterSpacing:.5, marginBottom:4 }}>📧 Objet email / LinkedIn</div>
+          <div style={{ fontSize:'.88rem', fontWeight:700, color:C.navy, paddingBottom:12 }}>{offer.sujet}</div>
+        </div>
+
+        {/* Message */}
+        <div style={{ flex:1, overflow:'auto', padding:'14px 22px' }}>
+          <pre ref={textRef} style={{
+            fontFamily:'inherit', fontSize:'.85rem', lineHeight:1.65,
+            whiteSpace:'pre-wrap', color:C.text, background:C.grey,
+            padding:14, borderRadius:10, border:`1px solid ${C.greyMid}`
+          }}>{offer.message}</pre>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'14px 22px', borderTop:`1px solid ${C.greyMid}`, display:'flex', gap:10, flexWrap:'wrap' }}>
+          <button onClick={copy} style={{
+            flex:1, minWidth:120, padding:'9px 14px', borderRadius:8, border:'none',
+            background: copied ? '#1E7145' : C.blue, color:'#fff',
+            fontWeight:700, fontSize:'.83rem', cursor:'pointer', transition:'background .2s'
+          }}>
+            {copied ? '✅ Copié !' : '📋 Copier le message'}
+          </button>
+          <button onClick={mailto} style={{
+            flex:1, minWidth:120, padding:'9px 14px', borderRadius:8, border:`1.5px solid ${C.blue}`,
+            background:'#fff', color:C.blue, fontWeight:700, fontSize:'.83rem', cursor:'pointer'
+          }}>✉️ Envoyer par email</button>
+          <a href={offer.lien} target="_blank" rel="noreferrer" style={{
+            flex:1, minWidth:120, padding:'9px 14px', borderRadius:8,
+            background:C.navy, color:'#fff', fontWeight:700, fontSize:'.83rem',
+            textDecoration:'none', textAlign:'center', display:'block'
+          }} title={offer.lienNote||'Voir l\'offre sur la plateforme'}>
+            🔗 {offer.lienNote ? 'Voir offre ⚠️' : 'Voir l\'offre'}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : MODAL STATUT
+// ══════════════════════════════════════════════════════════════════
+function StatutModal({ offer, current, onSave, onClose }) {
+  const [sel, setSel]     = useState(current.statut || 'À contacter');
+  const [notes, setNotes] = useState(current.notes || '');
+
+  useEffect(() => {
+    const onKey = e => { if(e.key==='Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:16
+    }}>
+      <div onClick={e=>e.stopPropagation()} className="modal-anim" style={{
+        background:'#fff', borderRadius:16, width:'100%', maxWidth:480,
+        boxShadow:'0 20px 60px rgba(0,0,0,.25)'
+      }}>
+        {/* Header */}
+        <div style={{ background:C.navy, padding:'16px 20px', borderRadius:'16px 16px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ color:'#fff', fontWeight:700 }}>🔄 Mettre à jour le statut</div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer', fontSize:'1rem' }}>✕</button>
+        </div>
+
+        <div style={{ padding:'16px 20px 20px' }}>
+          <div style={{ fontSize:'.82rem', fontWeight:700, color:C.navy, marginBottom:14, padding:'8px 12px', background:C.grey, borderRadius:8 }}>
+            📌 {offer.titre}
+          </div>
+
+          {/* Grille statuts */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
+            {Object.entries(STATUT_META).map(([s, m]) => (
+              <button key={s} onClick={() => setSel(s)} style={{
+                padding:'9px 12px', borderRadius:8, border: sel===s ? `2px solid ${m.color}` : `1.5px solid ${C.greyMid}`,
+                background: sel===s ? m.bg : '#fff', color: sel===s ? m.color : C.textSub,
+                fontWeight: sel===s ? 700 : 500, fontSize:'.82rem', cursor:'pointer',
+                transition:'all .15s', textAlign:'left',
+                boxShadow: sel===s ? `0 0 0 3px ${m.bg}` : 'none'
+              }}>
+                {m.icon} {s}
+              </button>
+            ))}
+          </div>
+
+          {/* Notes */}
+          <div style={{ fontSize:'.72rem', fontWeight:700, color:C.textSub, textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>📝 Notes (optionnel)</div>
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)}
+            placeholder="Ex : Entretien le 20/04, contact : Marie Dupont..."
+            style={{
+              width:'100%', minHeight:70, padding:'10px 12px', borderRadius:8,
+              border:`1.5px solid ${C.greyMid}`, fontFamily:'inherit', fontSize:'.85rem',
+              resize:'vertical', outline:'none', color:C.text
+            }}
+          />
+
+          {/* Historique */}
+          {current.historique && current.historique.length > 0 && (
+            <div style={{ marginTop:12, fontSize:'.72rem', color:C.textSub }}>
+              <div style={{ fontWeight:700, marginBottom:4 }}>📅 Historique</div>
+              {current.historique.slice(-3).map((h,i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', borderBottom:`1px solid ${C.greyMid}` }}>
+                  <span><StatutBadge statut={h.statut} small /></span>
+                  <span>{h.date}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Boutons */}
+          <div style={{ display:'flex', gap:10, marginTop:16 }}>
+            <button onClick={onClose} style={{
+              flex:1, padding:'10px', borderRadius:8, border:`1.5px solid ${C.greyMid}`,
+              background:'#fff', color:C.textSub, fontWeight:600, cursor:'pointer'
+            }}>Annuler</button>
+            <button onClick={() => onSave(sel, notes)} style={{
+              flex:2, padding:'10px', borderRadius:8, border:'none',
+              background:C.navy, color:'#fff', fontWeight:700, cursor:'pointer', fontSize:'.9rem'
+            }}>💾 Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : CARTE OFFRE
+// ══════════════════════════════════════════════════════════════════
+function OfferCard({ offer, statut, onMessage, onStatut }) {
+  const [hovered, setHovered] = useState(false);
+  const cat      = CAT_META[offer.cat]  || CAT_META.kyc;
+  const sm       = STATUT_META[statut.statut] || STATUT_META['À contacter'];
+  const fib      = FIABILITE_META[offer.fiabilite] || FIABILITE_META.inconnu;
+  const excluded = statut.statut === 'Non contacté';
+
+  const remoteColor = offer.remote.includes('Full Remote') ? '#1E7145'
+    : offer.remote.toLowerCase().includes('hybride') ? '#C55A11' : '#7B3F9E';
+  const remoteBg = offer.remote.includes('Full Remote') ? '#E2EFDA'
+    : offer.remote.toLowerCase().includes('hybride') ? '#FCE4D6' : '#F3E8FF';
+
+  return (
+    <div className="card-anim" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{
+      background: excluded ? '#f5f5f5' : '#fff',
+      borderRadius:14, overflow:'hidden',
+      boxShadow: hovered ? '0 8px 32px rgba(31,56,100,.18)' : '0 2px 10px rgba(31,56,100,.08)',
+      transition:'box-shadow .2s, transform .2s',
+      transform: hovered ? 'translateY(-2px)' : 'none',
+      display:'flex', flexDirection:'column',
+      borderTop:`3px solid ${excluded ? '#ccc' : cat.color}`,
+      opacity: excluded ? 0.55 : 1,
+    }}>
+      {/* Header carte */}
+      <div style={{ padding:'14px 16px 10px', background:`linear-gradient(135deg, ${cat.bg} 0%, #fff 100%)` }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8, gap:8 }}>
+          <span style={{
+            background:cat.bg, color:cat.color, fontSize:'.7rem', fontWeight:700,
+            padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap'
+          }}>{cat.label}</span>
+          <StatutBadge statut={statut.statut} small />
+        </div>
+        <div style={{ fontWeight:700, fontSize:'.95rem', color:C.navy, lineHeight:1.35, marginBottom:4 }}>{offer.titre}</div>
+        <div style={{ fontSize:'.75rem', color:C.textSub }}>📍 {offer.plateforme} · {offer.contact}</div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding:'12px 16px', flex:1 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 12px', marginBottom:12 }}>
+          <InfoItem label="Entreprise" value={offer.entreprise} />
+          <InfoItem label="Durée" value={offer.duree} />
+          <InfoItem label="TJM / Salaire" value={offer.tjm} highlight />
+          <InfoItem label="Type" value={offer.type} />
+          <InfoItem label="Secteur" value={offer.secteur} />
+          <div>
+            <div style={{ fontSize:'.68rem', color:C.textSub, fontWeight:600, textTransform:'uppercase', letterSpacing:.4, marginBottom:2 }}>Remote</div>
+            <span style={{ fontSize:'.78rem', fontWeight:700, color:remoteColor, background:remoteBg, padding:'2px 8px', borderRadius:12 }}>{offer.remote}</span>
+          </div>
+        </div>
+
+        {/* Fiabilité */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+          <span style={{ fontSize:'.7rem', color:fib.color, background:fib.bg, padding:'2px 8px', borderRadius:12, fontWeight:600 }} title={offer.fiabiliteNote}>{fib.label}</span>
+          <span style={{ fontSize:'.7rem', color:C.navy, background:C.greyMid, padding:'2px 8px', borderRadius:12, fontWeight:600 }}>Modèle {offer.modele}</span>
+        </div>
+
+        {/* Statut + date + notes */}
+        {statut.date && (
+          <div style={{ fontSize:'.73rem', color:C.textSub, marginBottom:4 }}>
+            Mis à jour le <strong>{statut.date}</strong>
+          </div>
+        )}
+        {statut.notes && (
+          <div style={{
+            fontSize:'.75rem', color:C.text, background:C.grey,
+            padding:'6px 10px', borderRadius:8, marginBottom:4,
+            borderLeft:`3px solid ${C.blue}`
+          }}>{statut.notes}</div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding:'10px 16px 14px', borderTop:`1px solid ${C.greyMid}`, display:'flex', gap:8 }}>
+        <button onClick={() => onMessage(offer)} style={{
+          flex:1, padding:'8px 0', borderRadius:8, border:'none',
+          background:C.navy, color:'#fff', fontWeight:700, fontSize:'.8rem', cursor:'pointer'
+        }}>📋 Message</button>
+        <button onClick={() => onStatut(offer)} style={{
+          flex:1, padding:'8px 0', borderRadius:8, border:`1.5px solid ${C.navy}`,
+          background:'#fff', color:C.navy, fontWeight:700, fontSize:'.8rem', cursor:'pointer'
+        }}>🔄 Statut</button>
+        <a href={offer.lien} target="_blank" rel="noreferrer" style={{
+          flex:1, padding:'8px 0', borderRadius:8, border:`1.5px solid ${C.greyMid}`,
+          background:C.grey, color:C.textSub, fontWeight:700, fontSize:'.8rem',
+          textDecoration:'none', textAlign:'center', display:'block'
+        }} title={offer.lienNote||''}>
+          {offer.lienNote ? '🔗 ⚠️' : '🔗 Offre'}
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function InfoItem({ label, value, highlight }) {
+  return (
+    <div>
+      <div style={{ fontSize:'.68rem', color:C.textSub, fontWeight:600, textTransform:'uppercase', letterSpacing:.4, marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:'.82rem', fontWeight: highlight ? 700 : 500, color: highlight ? '#1E7145' : C.text }}>{value}</div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : HEADER
+// ══════════════════════════════════════════════════════════════════
+function Header({ stats, onExport, exporting }) {
+  return (
+    <div style={{
+      background:`linear-gradient(135deg, ${C.navy} 0%, #2E4A7A 100%)`,
+      padding:'0 24px', boxShadow:'0 4px 20px rgba(31,56,100,.3)'
+    }}>
+      {/* Top row */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 0 12px' }}>
+        <div>
+          <div style={{ color:C.gold, fontWeight:800, fontSize:'1.15rem', letterSpacing:.3 }}>
+            📋 VEILLE MISSIONS FREELANCE
+          </div>
+          <div style={{ color:'rgba(255,255,255,.65)', fontSize:'.75rem', marginTop:2 }}>
+            Vanessa De Decker · DMOS ⭐ · KYC/LCB-FT · Full Remote · Disponible mai 2026
+          </div>
+        </div>
+        <button onClick={onExport} disabled={exporting} style={{
+          padding:'9px 16px', borderRadius:9, border:'none',
+          background: exporting ? '#ccc' : C.gold,
+          color: exporting ? '#888' : C.navy,
+          fontWeight:800, fontSize:'.8rem', cursor: exporting ? 'default' : 'pointer',
+          display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap'
+        }}>
+          {exporting ? '⏳ Export...' : '📊 Exporter Excel'}
+        </button>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{ display:'flex', gap:10, paddingBottom:16, flexWrap:'wrap' }}>
+        {[
+          { n: `${stats.actives}/${stats.total}`, label:'Actives', color:'rgba(255,255,255,.9)', sub:'rgba(255,255,255,.5)' },
+          { n: stats.contacte,  label:'Contactées',  color:'#86efac', sub:'#4ade80' },
+          { n: stats.relance,   label:'Relancées',   color:'#93c5fd', sub:'#60a5fa' },
+          { n: stats.entretien, label:'Entretiens',  color:'#d8b4fe', sub:'#c084fc' },
+          { n: stats.gagne,     label:'Gagnées 🎉',  color:'#fde68a', sub:'#fbbf24' },
+        ].map((s,i) => (
+          <div key={i} style={{
+            background:'rgba(255,255,255,.1)', borderRadius:10,
+            padding:'8px 16px', minWidth:80, textAlign:'center', flex:'1 1 80px'
+          }}>
+            <div style={{ fontSize:'1.4rem', fontWeight:800, color:s.color }}>{s.n}</div>
+            <div style={{ fontSize:'.68rem', color:s.sub, fontWeight:600, textTransform:'uppercase', letterSpacing:.4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : BARRE FILTRES
+// ══════════════════════════════════════════════════════════════════
+function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, search, setSearch, total, shown }) {
+  const cats = [
+    { key:'all',      label:'🔍 Toutes' },
+    { key:'kyc',      label:'🏦 KYC / LCB-FT' },
+    { key:'dmos',     label:'💊 DMOS ⭐' },
+    { key:'contrats', label:'📄 Contrats ⭐' },
+    { key:'admin',    label:'🗂️ Admin' },
+  ];
+
+  return (
+    <div style={{ background:'#fff', borderBottom:`1px solid ${C.greyMid}`, padding:'12px 24px', position:'sticky', top:0, zIndex:100, boxShadow:'0 2px 8px rgba(0,0,0,.06)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+
+        {/* Recherche */}
+        <div style={{ position:'relative', flex:'1 1 200px', minWidth:180 }}>
+          <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:C.textSub, fontSize:'.85rem' }}>🔍</span>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher une offre, secteur, plateforme..."
+            style={{
+              width:'100%', padding:'8px 12px 8px 32px', borderRadius:8,
+              border:`1.5px solid ${C.greyMid}`, fontFamily:'inherit', fontSize:'.83rem',
+              outline:'none', color:C.text, background:C.grey
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{
+              position:'absolute', right:8, top:'50%', transform:'translateY(-50%)',
+              background:'none', border:'none', cursor:'pointer', color:C.textSub, fontSize:'.8rem'
+            }}>✕</button>
+          )}
+        </div>
+
+        {/* Filtres catégories */}
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {cats.map(c => (
+            <button key={c.key} onClick={() => { setCatFilter(c.key); setStatutFilter('all'); }} style={{
+              padding:'7px 14px', borderRadius:20, border:'none', cursor:'pointer', fontSize:'.78rem', fontWeight:700,
+              background: catFilter===c.key ? C.navy : C.grey,
+              color: catFilter===c.key ? '#fff' : C.textSub,
+              transition:'all .15s'
+            }}>{c.label}</button>
+          ))}
+        </div>
+
+        {/* Filtres statut */}
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {[['all','📋 Toutes'],['active','✅ Contactées'],['pending','🕐 En attente']].map(([k,l]) => (
+            <button key={k} onClick={() => { setStatutFilter(k); setCatFilter('all'); }} style={{
+              padding:'7px 14px', borderRadius:20, border:'none', cursor:'pointer', fontSize:'.78rem', fontWeight:700,
+              background: statutFilter===k ? C.blue : C.grey,
+              color: statutFilter===k ? '#fff' : C.textSub,
+              transition:'all .15s'
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Compteur */}
+        <div style={{ fontSize:'.75rem', color:C.textSub, whiteSpace:'nowrap', marginLeft:'auto' }}>
+          {shown === total ? `${total} offre${total>1?'s':''}` : `${shown} / ${total}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════════════════════════════════
+async function doExport(statuts) {
+  const today = new Date().toLocaleDateString('fr-FR');
+  const fname = `Suivi_Export_${today.replace(/\//g,'-')}.xlsx`;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dashboard Vanessa';
+  const ws = wb.addWorksheet('🔍 Suivi Missions', { views:[{ state:'frozen', ySplit:3 }] });
+
+  ws.columns = [
+    {key:'id',width:6},{key:'titre',width:38},{key:'plat',width:14},
+    {key:'entr',width:26},{key:'sect',width:20},{key:'type',width:12},
+    {key:'tjm',width:18},{key:'rem',width:26},{key:'stat',width:16},
+    {key:'date',width:14},{key:'notes',width:30},{key:'lien',width:50},
+  ];
+
+  const solidFill = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
+  const thinBorder = () => { const s={style:'thin',color:{argb:'FFCCCCCC'}}; return {top:s,bottom:s,left:s,right:s}; };
+  const medBorder  = () => { const s={style:'medium',color:{argb:'FF162B50'}}; return {top:s,bottom:s,left:s,right:s}; };
+
+  const NAVY='FF1F3864', BLUEMID='FF2E75B6', GOLD='FFC9A227', WHITE='FFFFFFFF', ODD='FFEEF4FB';
+
+  const SS = {
+    'À contacter' :{ fill:'FFFFF3CD', font:'FF856404' },
+    'Contacté'    :{ fill:'FFD4EDDA', font:'FF155724' },
+    'Non contacté':{ fill:'FFE8E8E8', font:'FF666666' },
+    'Relancé'     :{ fill:'FFCCE5FF', font:'FF004085' },
+    'Entretien'   :{ fill:'FFF3E8FF', font:'FF4A1870' },
+    'Proposition' :{ fill:'FFD1ECF1', font:'FF117A8B' },
+    'Accepté'     :{ fill:'FFC3E6CB', font:'FF155724' },
+    'Refus'       :{ fill:'FFF8D7DA', font:'FF721C24' },
+    'Sans réponse':{ fill:'FFE2E3E5', font:'FF383D41' },
+  };
+
+  // Ligne 1 — titre
+  const r1 = ws.addRow(['📋   SUIVI MISSIONS FREELANCE  ·  Vanessa De Decker  |  DMOS · KYC/LCB-FT  |  Full Remote',...Array(11).fill('')]);
+  r1.height = 38; ws.mergeCells(1,1,1,12);
+  const c1 = ws.getCell('A1');
+  c1.fill=solidFill(NAVY); c1.font={name:'Calibri',bold:true,size:15,color:{argb:GOLD}};
+  c1.alignment={horizontal:'center',vertical:'middle'}; c1.border=medBorder();
+
+  // Ligne 2 — sous-titre
+  const r2 = ws.addRow([`Dernière mise à jour : ${today}   ·   Veille FREELANCE  ·  Full Remote / Hybride`,...Array(11).fill('')]);
+  r2.height=24; ws.mergeCells(2,1,2,12);
+  const c2=ws.getCell('A2');
+  c2.fill=solidFill(BLUEMID); c2.font={name:'Calibri',size:10,color:{argb:WHITE}};
+  c2.alignment={horizontal:'center',vertical:'middle'};
+
+  // Ligne 3 — en-têtes
+  const r3 = ws.addRow(['ID','Titre','Plateforme','Entreprise','Secteur','Type','TJM','Remote','Statut','Date statut','Notes','Lien']);
+  r3.height=30;
+  r3.eachCell(cell=>{ cell.fill=solidFill(NAVY); cell.font={name:'Calibri',bold:true,size:10,color:{argb:WHITE}}; cell.alignment={horizontal:'center',vertical:'middle'}; cell.border=medBorder(); });
+
+  // Données
+  OFFERS.forEach((o,ri) => {
+    const st = statuts[o.id] || { statut:'À contacter', date:'', notes:'' };
+    const bg = ri%2===0 ? ODD : 'FFFFFFFF';
+    const ss = SS[st.statut] || SS['À contacter'];
+    let sF='FFD6E4F0',sFt='FF1F3864';
+    if((o.secteur||'').match(/Médical|Pharma|Dispositif/)){ sF='FFFFF3CD'; sFt='FF7B3A00'; }
+    else if((o.secteur||'').includes('Assurance')){ sF='FFEDE0F5'; sFt='FF4A1870'; }
+    let rF=o.remote.includes('Full Remote')?'FFD4EDDA':o.remote.toLowerCase().includes('hybride')?'FFFFE5D0':'FFFFF3CD';
+    let rFt=o.remote.includes('Full Remote')?'FF155724':o.remote.toLowerCase().includes('hybride')?'FF7B3A00':'FF856404';
+
+    const row = ws.addRow([o.id,o.titre,o.plateforme,o.entreprise,o.secteur,o.type||'',o.tjm,o.remote,st.statut,st.date||'',st.notes||'',o.lien]);
+    row.height=36;
+    row.eachCell({includeEmpty:true},(cell,ci)=>{
+      let fill=bg, fnt='FF333333', bold=false;
+      if(ci===1){fnt='FF1F3864';bold=true;}
+      else if(ci===2){fnt='FF1F3864';bold=true;}
+      else if(ci===3){fnt='FF2E75B6';bold=true;}
+      else if(ci===5){fill=sF;fnt=sFt;bold=true;}
+      else if(ci===7){fill='FFD4EDDA';fnt='FF155724';bold=true;}
+      else if(ci===8){fill=rF;fnt=rFt;bold=true;}
+      else if(ci===9){fill=ss.fill;fnt=ss.font;bold=true;}
+      else if(ci===10){fnt='FF555555';}
+      else if(ci===12){fnt='FF2E75B6';}
+      cell.fill=solidFill(fill); cell.font={name:'Calibri',bold,size:10,color:{argb:fnt}};
+      cell.alignment={horizontal:[1,3,6,7,8,9,10].includes(ci)?'center':'left',vertical:'middle',wrapText:ci===2||ci===11};
+      cell.border=thinBorder();
+    });
+  });
+
+  const buf  = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=fname; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// APP PRINCIPALE
+// ══════════════════════════════════════════════════════════════════
+function App() {
+  const [statuts,    setStatuts]    = useState(loadStatuts);
+  const [catFilter,  setCatFilter]  = useState('all');
+  const [statFilter, setStatFilter] = useState('all');
+  const [search,     setSearch]     = useState('');
+  const [msgOffer,   setMsgOffer]   = useState(null);
+  const [statOffer,  setStatOffer]  = useState(null);
+  const [toasts,     setToasts]     = useState([]);
+  const [exporting,  setExporting]  = useState(false);
+  const toastId = useRef(0);
+
+  const addToast = useCallback((msg, type='info') => {
+    const id = ++toastId.current;
+    setToasts(prev => [...prev, { id, msg, type, leaving:false }]);
+    setTimeout(() => setToasts(prev => prev.map(t => t.id===id ? {...t,leaving:true} : t)), 2700);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id!==id)), 3000);
+  }, []);
+
+  const updateStatut = useCallback((id, statut, notes) => {
+    setStatuts(prev => {
+      const old = prev[id] || { statut:'À contacter', date:null, notes:'', historique:[] };
+      const hist = old.statut && old.statut !== statut
+        ? [...(old.historique||[]), { statut:old.statut, date:old.date }]
+        : (old.historique || []);
+      const next = { ...prev, [id]: { statut, date:new Date().toLocaleDateString('fr-FR'), notes, historique:hist } };
+      saveStatuts(next);
+      return next;
+    });
+    addToast(`Statut mis à jour : ${statut}`, 'success');
+    setStatOffer(null);
+  }, [addToast]);
+
+  // Filtrage
+  const visible = useMemo(() => {
+    let list = OFFERS;
+    if (catFilter !== 'all') list = list.filter(o => o.cat === catFilter);
+    if (statFilter === 'active') list = list.filter(o => {
+      const s = (statuts[o.id]||{}).statut||'À contacter';
+      return ['Contacté','Relancé','Entretien','Proposition'].includes(s);
+    });
+    // "En attente" = uniquement les actives sans "Non contacté"
+    if (statFilter === 'pending') list = list.filter(o => {
+      const s = (statuts[o.id]||{}).statut||'À contacter';
+      return ['À contacter','Sans réponse'].includes(s);
+    });
+    // "Exclues" = uniquement les "Non contacté"
+    else if (statFilter === 'exclus') list = list.filter(o => {
+      return (statuts[o.id]||{}).statut === 'Non contacté';
+    });
+    // "Toutes" / "Contactées" = tout afficher (non contacté apparaît grisé)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(o =>
+        o.titre.toLowerCase().includes(q) ||
+        o.plateforme.toLowerCase().includes(q) ||
+        o.secteur.toLowerCase().includes(q) ||
+        o.entreprise.toLowerCase().includes(q) ||
+        o.remote.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [catFilter, statFilter, search, statuts]);
+
+  // Stats
+  const stats = useMemo(() => {
+    let contacte=0, relance=0, entretien=0, gagne=0;
+    OFFERS.forEach(o => {
+      const s = (statuts[o.id]||{}).statut||'À contacter';
+      if (s==='Contacté') contacte++;
+      if (s==='Relancé')  relance++;
+      if (['Entretien','Proposition'].includes(s)) entretien++;
+      if (s==='Accepté') gagne++;
+    });
+    const actives = OFFERS.filter(o => (statuts[o.id]||{}).statut !== 'Non contacté').length;
+    return { total:OFFERS.length, actives, contacte, relance, entretien, gagne };
+  }, [statuts]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await doExport(statuts);
+      addToast('Fichier Excel exporté avec succès !', 'success');
+    } catch(e) {
+      addToast('Erreur lors de l\'export', 'error');
+      console.error(e);
+    }
+    setExporting(false);
+  };
+
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+      <Header stats={stats} onExport={handleExport} exporting={exporting} />
+      <FilterBar
+        catFilter={catFilter} setCatFilter={setCatFilter}
+        statutFilter={statFilter} setStatutFilter={setStatFilter}
+        search={search} setSearch={setSearch}
+        total={OFFERS.length} shown={visible.length}
+      />
+
+      {/* Grille cartes */}
+      <main style={{ flex:1, padding:'20px 24px', maxWidth:1400, margin:'0 auto', width:'100%' }}>
+        {visible.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'60px 20px', color:C.textSub }}>
+            <div style={{ fontSize:'3rem', marginBottom:12 }}>🔍</div>
+            <div style={{ fontSize:'1.1rem', fontWeight:700, marginBottom:6 }}>Aucune offre trouvée</div>
+            <div style={{ fontSize:'.85rem' }}>Essayez d'autres filtres ou effacez la recherche</div>
+          </div>
+        ) : (
+          <div style={{
+            display:'grid',
+            gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))',
+            gap:18
+          }}>
+            {visible.map(o => (
+              <OfferCard
+                key={o.id}
+                offer={o}
+                statut={statuts[o.id] || { statut:'À contacter', date:null, notes:'', historique:[] }}
+                onMessage={setMsgOffer}
+                onStatut={setStatOffer}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer style={{ padding:'14px 24px', background:C.navy, color:'rgba(255,255,255,.5)', fontSize:'.72rem', textAlign:'center' }}>
+        Vanessa De Decker · DMOS ⭐ · Gestion Contrats ⭐ · KYC/LCB-FT · Full Remote · Freelance · CDI · CDD · Intérim
+        <br/><span style={{color:'rgba(255,255,255,.3)'}}>Statuts sauvegardés dans votre navigateur · Veille automatique disponible en version locale · Les liens ⚠️ redirigent vers la page générale — vérifier manuellement</span>
+      </footer>
+
+      {/* Modals */}
+      {msgOffer && <MessageModal offer={msgOffer} onClose={() => setMsgOffer(null)} onToast={addToast} />}
+      {statOffer && (
+        <StatutModal
+          offer={statOffer}
+          current={statuts[statOffer.id] || { statut:'À contacter', date:null, notes:'', historique:[] }}
+          onSave={(s,n) => updateStatut(statOffer.id, s, n)}
+          onClose={() => setStatOffer(null)}
+        />
+      )}
+
+      {/* Toasts */}
+      <Toast toasts={toasts} />
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MOUNT
+// ══════════════════════════════════════════════════════════════════
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

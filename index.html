@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Missions — Vanessa De Decker</title>
+<title>Missions Vanessa — Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -143,10 +143,10 @@ const STATUT_META = {
 };
 
 const FIABILITE_META = {
-  fiable:   { label:'✅ Fiable',      color:'#155724', bg:'#D4EDDA' },
-  verifier: { label:'⚠️ À vérifier', color:'#856404', bg:'#FFF3CD' },
-  prudence: { label:'❌ Prudence',    color:'#721C24', bg:'#F8D7DA' },
-  inconnu:  { label:'❓ Inconnu',     color:'#666',    bg:'#E8E8E8' },
+  fiable:   { label:'Fiabilité entreprise : ✅ Fiable',      color:'#155724', bg:'#D4EDDA' },
+  verifier: { label:'Fiabilité entreprise : ⚠️ À vérifier', color:'#856404', bg:'#FFF3CD' },
+  prudence: { label:'Fiabilité entreprise : ❌ Prudence',    color:'#721C24', bg:'#F8D7DA' },
+  inconnu:  { label:'Fiabilité entreprise : ❓ Inconnu', color:'#666', bg:'#E8E8E8' },
 };
 
 const C = {
@@ -838,7 +838,7 @@ function App() {
       {/* Footer */}
       <footer style={{ padding:'14px 24px', background:C.navy, color:'rgba(255,255,255,.5)', fontSize:'.72rem', textAlign:'center' }}>
         Vanessa De Decker · DMOS ⭐ · Gestion Contrats ⭐ · KYC/LCB-FT · Full Remote · Freelance · CDI · CDD · Intérim
-        <br/><span style={{color:'rgba(255,255,255,.3)'}}>Statuts sauvegardés dans votre navigateur · Veille automatique disponible en version locale · Les liens ⚠️ redirigent vers la page générale — vérifier manuellement</span>
+        <br/><span style={{color:'rgba(255,255,255,.3)'}}>Statuts sauvegardés dans ce navigateur · Les liens ⚠️ redirigent vers la page générale — vérifier manuellement</span>
       </footer>
 
       {/* Modals */}

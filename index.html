@@ -20,10 +20,24 @@
   @keyframes toastIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
   @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
   .card-anim{animation:fadeIn .25s ease both}
   .modal-anim{animation:slideUp .2s ease both}
   .toast-in{animation:toastIn .3s ease both}
   .toast-out{animation:toastOut .3s ease forwards}
+  .relance-pulse{animation:pulse 2s infinite}
+  @media print {
+    body{background:#fff!important;font-size:11px}
+    .no-print{display:none!important}
+    .print-table{width:100%;border-collapse:collapse;margin-top:10px}
+    .print-table th{background:#1F3864;color:#fff;padding:6px 8px;font-size:10px;text-align:left}
+    .print-table td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:10px}
+    .print-table tr:nth-child(even) td{background:#f0f4f8}
+    .print-header{text-align:center;padding:16px 0;border-bottom:2px solid #1F3864;margin-bottom:12px}
+    .print-header h1{color:#1F3864;font-size:16px}
+    .print-header p{color:#64748b;font-size:11px}
+  }
+  @media not print { .print-only{display:none!important} }
 </style>
 </head>
 <body>
@@ -121,7 +135,8 @@ const OFFERS = [
 // ══════════════════════════════════════════════════════════════════
 // CONSTANTES
 // ══════════════════════════════════════════════════════════════════
-const LS_KEY = 'suivi_vanessa_2026';
+const LS_KEY      = 'suivi_vanessa_2026';
+const PROFILE_KEY = 'profil_vanessa_2026';
 
 const CAT_META = {
   kyc:      { label:'🏦 KYC / LCB-FT',        color:'#2E75B6', bg:'#D6E4F0' },
@@ -146,7 +161,7 @@ const FIABILITE_META = {
   fiable:   { label:'Fiabilité entreprise : ✅ Fiable',      color:'#155724', bg:'#D4EDDA' },
   verifier: { label:'Fiabilité entreprise : ⚠️ À vérifier', color:'#856404', bg:'#FFF3CD' },
   prudence: { label:'Fiabilité entreprise : ❌ Prudence',    color:'#721C24', bg:'#F8D7DA' },
-  inconnu:  { label:'Fiabilité entreprise : ❓ Inconnu', color:'#666', bg:'#E8E8E8' },
+  inconnu:  { label:'Fiabilité entreprise : ❓ Inconnu',     color:'#666',    bg:'#E8E8E8' },
 };
 
 const C = {
@@ -162,14 +177,124 @@ const C = {
 };
 
 // ══════════════════════════════════════════════════════════════════
+// MOTS-CLÉS LINKEDIN PAR SECTEUR
+// ══════════════════════════════════════════════════════════════════
+const KEYWORDS_BY_SECTOR = {
+  kyc: {
+    label: '🏦 KYC / LCB-FT / Conformité',
+    keywords: ['KYC','LCB-FT','AML','Conformité bancaire','Bâle III','Due diligence','FATCA','CRS','Onboarding client','Analyse risques','Veille réglementaire','Compliance','ACPR','Banque de France','Gel des avoirs','PPE','Sanctions internationales','Lutte contre le blanchiment'],
+  },
+  dmos: {
+    label: '💊 DMOS / Dispositif médical',
+    keywords: ['DMOS','Loi Anti-Cadeaux','HCP','IDAHE','EPS','Conventions Médecins','Dispositif médical','Transparence santé','CNOM','ARS','Pharma compliance','Sunshine Act','Avantages professionnels de santé','Medtronic','Abbott'],
+  },
+  admin: {
+    label: '🗂️ Gestion Administrative',
+    keywords: ['Gestion administrative','Office management','Back office','Assistante de direction','Secrétariat','Microsoft 365','Excel avancé','Process optimisation','Coordination','Reporting','Gestion documentaire','Full Remote','Intelligence artificielle','Microsoft Copilot','Claude AI'],
+  },
+  contrats: {
+    label: '📄 Gestion des Contrats',
+    keywords: ["Gestion contrats","Contract management","Droit des contrats","Appels d'offres","Négociation","Renouvellement","Due diligence contrats","CLM","Achats","Conformité contractuelle","RGPD","NDA"],
+  },
+};
+
+// ══════════════════════════════════════════════════════════════════
+// PROFIL PAR DÉFAUT
+// ══════════════════════════════════════════════════════════════════
+const DEFAULT_PROFILE = {
+  nom:      'Vanessa De Decker',
+  specialite: 'DMOS · KYC/LCB-FT · Gestion Administrative',
+  contrat:  'Freelance · CDI · CDD',
+  remote:   'Full Remote',
+  dispo:    'Mai 2026',
+  tjmMin:   '350',
+  tjmMax:   '600',
+  exp:      '20 ans',
+};
+
+// ══════════════════════════════════════════════════════════════════
 // LOCAL STORAGE
 // ══════════════════════════════════════════════════════════════════
 function loadStatuts() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
   catch { return {}; }
 }
-function saveStatuts(data) {
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+function saveStatuts(data) { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+
+function loadProfile() {
+  try {
+    const p = localStorage.getItem(PROFILE_KEY);
+    return p ? JSON.parse(p) : null;
+  } catch { return null; }
+}
+function persistProfile(data) { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); }
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function getDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return null;
+  const d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+function getCoverLetterBullets(cat) {
+  const map = {
+    kyc: [
+      "Analyse et validation de dossiers KYC selon les exigences réglementaires (ACPR, FATCA, CRS)",
+      "Maîtrise du dispositif LCB-FT et des procédures Bâle II/III",
+      "Reporting conformité et coordination avec les équipes juridiques et compliance",
+    ],
+    dmos: [
+      "Gestion complète de la conformité Loi Anti-Cadeaux / DMOS et des conventions HCP",
+      "Déclarations réglementaires IDAHE & EPS auprès du CNOM et des ARS — zéro non-conformité",
+      "Coordination multi-acteurs : équipes commerciales, agences événementielles, professionnels de santé",
+    ],
+    admin: [
+      "Gestion administrative et organisationnelle en environnement réglementé et exigeant",
+      "Maîtrise des outils Microsoft 365 et des nouveaux outils d'IA (Microsoft Copilot, Claude)",
+      "Coordination de projets transverses et reporting multi-parties prenantes",
+    ],
+    contrats: [
+      "Négociation et suivi de contrats complexes en environnement multi-parties",
+      "Gestion des renouvellements, contentieux et conformité contractuelle",
+      "Coordination avec les équipes juridiques, commerciales et financières",
+    ],
+  };
+  return map[cat] || map.admin;
+}
+
+function generateCoverLetter(offer, profile) {
+  const today = new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  const bullets = getCoverLetterBullets(offer.cat);
+  return `Le ${today}
+
+Objet : Candidature au poste de ${offer.titre}
+Réf. : ${offer.plateforme} — ${offer.entreprise}
+
+Madame, Monsieur,
+
+C'est avec un vif intérêt que je vous adresse ma candidature pour le poste de ${offer.titre} proposé par ${offer.entreprise} via ${offer.plateforme}.
+
+Forte de ${profile.exp || '20 ans'} d'expérience professionnelle, dont 14 ans dans le secteur bancaire et 3 ans dans le dispositif médical, je dispose d'une expertise reconnue en ${profile.specialite}. Mon parcours m'a permis de développer une vision globale des enjeux réglementaires et une réelle capacité d'adaptation.
+
+Au cours de mon parcours, j'ai notamment développé les compétences suivantes :
+• ${bullets[0]}
+• ${bullets[1]}
+• ${bullets[2]}
+
+Disponible dès ${profile.dispo || 'mai 2026'}, en ${profile.remote || 'Full Remote'}, je recherche un engagement de type ${profile.contrat || 'Freelance · CDI · CDD'}.
+
+Convaincue que mon profil correspond à vos attentes, je reste à votre disposition pour tout entretien à votre convenance.
+
+Dans l'attente de votre retour, je vous adresse mes cordiales salutations.
+
+${profile.nom || 'Vanessa De Decker'}
+${profile.specialite || 'DMOS · KYC/LCB-FT · Gestion Administrative'}
+${profile.remote || 'Full Remote'} | Disponible ${profile.dispo || 'mai 2026'}`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -177,7 +302,7 @@ function saveStatuts(data) {
 // ══════════════════════════════════════════════════════════════════
 function Toast({ toasts }) {
   return (
-    <div style={{ position:'fixed', bottom:24, right:24, zIndex:9999, display:'flex', flexDirection:'column', gap:8 }}>
+    <div className="no-print" style={{ position:'fixed', bottom:24, right:24, zIndex:9999, display:'flex', flexDirection:'column', gap:8 }}>
       {toasts.map(t => (
         <div key={t.id} className={t.leaving ? 'toast-out' : 'toast-in'} style={{
           background: t.type==='success' ? '#1E7145' : t.type==='info' ? C.blue : '#721C24',
@@ -211,11 +336,123 @@ function StatutBadge({ statut, small }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// COMPOSANT : MODAL MESSAGE
+// COMPOSANT : STATS PANEL
 // ══════════════════════════════════════════════════════════════════
-function MessageModal({ offer, onClose, onToast }) {
+function StatsPanel({ statuts, visible: showPanel, onToggle }) {
+  const pipeline = useMemo(() => {
+    const counts = { aContacter:0, contacte:0, relance:0, entretien:0, proposition:0, accepte:0, refus:0, sansReponse:0, nonContacte:0 };
+    OFFERS.forEach(o => {
+      const s = (statuts[o.id]||{}).statut || 'À contacter';
+      if (s==='À contacter') counts.aContacter++;
+      else if (s==='Contacté') counts.contacte++;
+      else if (s==='Relancé') counts.relance++;
+      else if (s==='Entretien') counts.entretien++;
+      else if (s==='Proposition') counts.proposition++;
+      else if (s==='Accepté') counts.accepte++;
+      else if (s==='Refus') counts.refus++;
+      else if (s==='Sans réponse') counts.sansReponse++;
+      else if (s==='Non contacté') counts.nonContacte++;
+    });
+    return counts;
+  }, [statuts]);
+
+  const total = OFFERS.length;
+  const actives = total - pipeline.nonContacte;
+  const contacted = pipeline.contacte + pipeline.relance + pipeline.entretien + pipeline.proposition + pipeline.accepte;
+  const tauxContact = actives > 0 ? Math.round((contacted / actives) * 100) : 0;
+  const tauxEntretien = contacted > 0 ? Math.round(((pipeline.entretien + pipeline.proposition) / contacted) * 100) : 0;
+
+  // Alertes relance (contacté depuis > 7 jours)
+  const relanceAlerts = OFFERS.filter(o => {
+    const st = statuts[o.id] || {};
+    if (st.statut !== 'Contacté') return false;
+    const days = getDaysSince(st.date);
+    return days !== null && days >= 7;
+  }).length;
+
+  if (!showPanel) {
+    return (
+      <div className="no-print" style={{ background:'#fff', borderBottom:`1px solid ${C.greyMid}`, padding:'8px 24px', display:'flex', alignItems:'center', gap:12 }}>
+        <button onClick={onToggle} style={{ background:'none', border:'none', cursor:'pointer', color:C.blue, fontWeight:700, fontSize:'.8rem', display:'flex', alignItems:'center', gap:6 }}>
+          📊 Afficher les statistiques ▼
+        </button>
+        {relanceAlerts > 0 && (
+          <span className="relance-pulse" style={{ background:'#FFF3CD', color:'#856404', padding:'3px 10px', borderRadius:20, fontSize:'.75rem', fontWeight:700 }}>
+            ⏰ {relanceAlerts} relance{relanceAlerts>1?'s':''} à faire
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const funnel = [
+    { label:'À contacter', n:pipeline.aContacter, color:'#FFF3CD', tc:'#856404' },
+    { label:'Contactées',  n:pipeline.contacte,   color:'#D4EDDA', tc:'#155724' },
+    { label:'Relancées',   n:pipeline.relance,     color:'#CCE5FF', tc:'#004085' },
+    { label:'Entretiens',  n:pipeline.entretien + pipeline.proposition, color:'#F3E8FF', tc:'#4A1870' },
+    { label:'Gagnées 🎉',  n:pipeline.accepte,    color:'#C3E6CB', tc:'#155724' },
+  ];
+
+  return (
+    <div className="no-print" style={{ background:'#fff', borderBottom:`1px solid ${C.greyMid}`, padding:'14px 24px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        <div style={{ fontWeight:700, color:C.navy, fontSize:'.88rem' }}>📊 Tableau de bord — Pipeline candidatures</div>
+        <button onClick={onToggle} style={{ background:'none', border:'none', cursor:'pointer', color:C.textSub, fontSize:'.78rem' }}>Réduire ▲</button>
+      </div>
+
+      {/* Funnel */}
+      <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+        {funnel.map((f,i) => (
+          <React.Fragment key={i}>
+            <div style={{ textAlign:'center', minWidth:70 }}>
+              <div style={{ background:f.color, color:f.tc, borderRadius:10, padding:'8px 14px', fontWeight:800, fontSize:'1.3rem', marginBottom:4 }}>{f.n}</div>
+              <div style={{ fontSize:'.68rem', color:C.textSub, fontWeight:600, lineHeight:1.2 }}>{f.label}</div>
+            </div>
+            {i < funnel.length-1 && <div style={{ color:C.greyMid, fontSize:'1.2rem', fontWeight:300 }}>→</div>}
+          </React.Fragment>
+        ))}
+
+        {/* Séparateur */}
+        <div style={{ width:1, background:C.greyMid, height:50, margin:'0 8px' }} />
+
+        {/* Métriques */}
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+          {[
+            { n:`${tauxContact}%`, label:'Taux de contact', color:C.blue },
+            { n:`${tauxEntretien}%`, label:'Taux entretien', color:'#7B3F9E' },
+            { n:pipeline.refus, label:'Refus / Sans réponse', color:'#721C24' },
+          ].map((m,i) => (
+            <div key={i} style={{ textAlign:'center', minWidth:70 }}>
+              <div style={{ fontSize:'1.3rem', fontWeight:800, color:m.color }}>{m.n}</div>
+              <div style={{ fontSize:'.68rem', color:C.textSub, fontWeight:600, lineHeight:1.2 }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Alerte relance */}
+        {relanceAlerts > 0 && (
+          <div className="relance-pulse" style={{ marginLeft:'auto', background:'#FFF3CD', border:'1.5px solid #FFC107', borderRadius:10, padding:'8px 14px', textAlign:'center' }}>
+            <div style={{ fontSize:'1.1rem', fontWeight:800, color:'#856404' }}>⏰ {relanceAlerts}</div>
+            <div style={{ fontSize:'.68rem', color:'#856404', fontWeight:600 }}>À relancer</div>
+          </div>
+        )}
+      </div>
+
+      {/* Barre progression */}
+      <div style={{ background:C.greyMid, borderRadius:20, height:8, overflow:'hidden' }}>
+        <div style={{ height:'100%', borderRadius:20, background:`linear-gradient(90deg, ${C.blue} 0%, #1E7145 100%)`, width:`${tauxContact}%`, transition:'width .5s ease' }} />
+      </div>
+      <div style={{ fontSize:'.7rem', color:C.textSub, marginTop:4 }}>{contacted} offre{contacted>1?'s':''} contactée{contacted>1?'s':''} sur {actives} actives</div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : MODAL MESSAGE (avec onglet Lettre de motivation)
+// ══════════════════════════════════════════════════════════════════
+function MessageModal({ offer, profile, onClose, onToast }) {
+  const [tab, setTab]     = useState('message');
   const [copied, setCopied] = useState(false);
-  const textRef = useRef();
 
   useEffect(() => {
     const onKey = e => { if(e.key==='Escape') onClose(); };
@@ -223,26 +460,29 @@ function MessageModal({ offer, onClose, onToast }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const content = tab === 'message' ? offer.message : generateCoverLetter(offer, profile);
+  const subject = tab === 'message' ? offer.sujet : `Candidature — ${offer.titre}`;
+
   const copy = async () => {
-    await navigator.clipboard.writeText(offer.message);
+    await navigator.clipboard.writeText(content);
     setCopied(true);
-    onToast('Message copié !', 'success');
+    onToast(tab === 'message' ? 'Message copié !' : 'Lettre copiée !', 'success');
     setTimeout(() => setCopied(false), 3000);
   };
 
   const mailto = () => {
-    const b = encodeURIComponent(offer.message);
-    const s = encodeURIComponent(offer.sujet);
+    const b = encodeURIComponent(content);
+    const s = encodeURIComponent(subject);
     window.location.href = `mailto:?subject=${s}&body=${b}`;
   };
 
   return (
-    <div onClick={onClose} style={{
+    <div className="no-print" onClick={onClose} style={{
       position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000,
       display:'flex', alignItems:'center', justifyContent:'center', padding:16
     }}>
       <div onClick={e=>e.stopPropagation()} className="modal-anim" style={{
-        background:'#fff', borderRadius:16, width:'100%', maxWidth:640,
+        background:'#fff', borderRadius:16, width:'100%', maxWidth:660,
         maxHeight:'90vh', display:'flex', flexDirection:'column',
         boxShadow:'0 20px 60px rgba(0,0,0,.25)'
       }}>
@@ -257,19 +497,34 @@ function MessageModal({ offer, onClose, onToast }) {
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer', fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
         </div>
 
-        {/* Objet */}
-        <div style={{ padding:'14px 22px 0', borderBottom:`1px solid ${C.greyMid}` }}>
-          <div style={{ fontSize:'.72rem', color:C.textSub, fontWeight:600, textTransform:'uppercase', letterSpacing:.5, marginBottom:4 }}>📧 Objet email / LinkedIn</div>
-          <div style={{ fontSize:'.88rem', fontWeight:700, color:C.navy, paddingBottom:12 }}>{offer.sujet}</div>
+        {/* Onglets */}
+        <div style={{ display:'flex', borderBottom:`1px solid ${C.greyMid}` }}>
+          {[['message','📋 Message LinkedIn/Email'],['lettre','📝 Lettre de motivation']].map(([k,l]) => (
+            <button key={k} onClick={() => { setTab(k); setCopied(false); }} style={{
+              flex:1, padding:'10px', border:'none', background: tab===k ? '#fff' : C.grey,
+              color: tab===k ? C.navy : C.textSub, fontWeight: tab===k ? 700 : 500,
+              cursor:'pointer', fontSize:'.82rem',
+              borderBottom: tab===k ? `3px solid ${C.blue}` : '3px solid transparent',
+              transition:'all .15s'
+            }}>{l}</button>
+          ))}
         </div>
 
-        {/* Message */}
+        {/* Objet */}
+        <div style={{ padding:'12px 22px 0', borderBottom:`1px solid ${C.greyMid}` }}>
+          <div style={{ fontSize:'.72rem', color:C.textSub, fontWeight:600, textTransform:'uppercase', letterSpacing:.5, marginBottom:4 }}>
+            {tab==='message' ? '📧 Objet email / LinkedIn' : '📄 Objet de la lettre'}
+          </div>
+          <div style={{ fontSize:'.88rem', fontWeight:700, color:C.navy, paddingBottom:12 }}>{subject}</div>
+        </div>
+
+        {/* Contenu */}
         <div style={{ flex:1, overflow:'auto', padding:'14px 22px' }}>
-          <pre ref={textRef} style={{
+          <pre style={{
             fontFamily:'inherit', fontSize:'.85rem', lineHeight:1.65,
             whiteSpace:'pre-wrap', color:C.text, background:C.grey,
             padding:14, borderRadius:10, border:`1px solid ${C.greyMid}`
-          }}>{offer.message}</pre>
+          }}>{content}</pre>
         </div>
 
         {/* Footer */}
@@ -279,7 +534,7 @@ function MessageModal({ offer, onClose, onToast }) {
             background: copied ? '#1E7145' : C.blue, color:'#fff',
             fontWeight:700, fontSize:'.83rem', cursor:'pointer', transition:'background .2s'
           }}>
-            {copied ? '✅ Copié !' : '📋 Copier le message'}
+            {copied ? '✅ Copié !' : '📋 Copier'}
           </button>
           <button onClick={mailto} style={{
             flex:1, minWidth:120, padding:'9px 14px', borderRadius:8, border:`1.5px solid ${C.blue}`,
@@ -289,8 +544,8 @@ function MessageModal({ offer, onClose, onToast }) {
             flex:1, minWidth:120, padding:'9px 14px', borderRadius:8,
             background:C.navy, color:'#fff', fontWeight:700, fontSize:'.83rem',
             textDecoration:'none', textAlign:'center', display:'block'
-          }} title={offer.lienNote||'Voir l\'offre sur la plateforme'}>
-            🔗 {offer.lienNote ? 'Voir offre ⚠️' : 'Voir l\'offre'}
+          }} title={offer.lienNote||"Voir l'offre sur la plateforme"}>
+            🔗 {offer.lienNote ? 'Voir offre ⚠️' : "Voir l'offre"}
           </a>
         </div>
       </div>
@@ -312,7 +567,7 @@ function StatutModal({ offer, current, onSave, onClose }) {
   }, [onClose]);
 
   return (
-    <div onClick={onClose} style={{
+    <div className="no-print" onClick={onClose} style={{
       position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000,
       display:'flex', alignItems:'center', justifyContent:'center', padding:16
     }}>
@@ -320,18 +575,14 @@ function StatutModal({ offer, current, onSave, onClose }) {
         background:'#fff', borderRadius:16, width:'100%', maxWidth:480,
         boxShadow:'0 20px 60px rgba(0,0,0,.25)'
       }}>
-        {/* Header */}
         <div style={{ background:C.navy, padding:'16px 20px', borderRadius:'16px 16px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ color:'#fff', fontWeight:700 }}>🔄 Mettre à jour le statut</div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer', fontSize:'1rem' }}>✕</button>
         </div>
-
         <div style={{ padding:'16px 20px 20px' }}>
           <div style={{ fontSize:'.82rem', fontWeight:700, color:C.navy, marginBottom:14, padding:'8px 12px', background:C.grey, borderRadius:8 }}>
             📌 {offer.titre}
           </div>
-
-          {/* Grille statuts */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
             {Object.entries(STATUT_META).map(([s, m]) => (
               <button key={s} onClick={() => setSel(s)} style={{
@@ -345,8 +596,6 @@ function StatutModal({ offer, current, onSave, onClose }) {
               </button>
             ))}
           </div>
-
-          {/* Notes */}
           <div style={{ fontSize:'.72rem', fontWeight:700, color:C.textSub, textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>📝 Notes (optionnel)</div>
           <textarea value={notes} onChange={e=>setNotes(e.target.value)}
             placeholder="Ex : Entretien le 20/04, contact : Marie Dupont..."
@@ -356,8 +605,6 @@ function StatutModal({ offer, current, onSave, onClose }) {
               resize:'vertical', outline:'none', color:C.text
             }}
           />
-
-          {/* Historique */}
           {current.historique && current.historique.length > 0 && (
             <div style={{ marginTop:12, fontSize:'.72rem', color:C.textSub }}>
               <div style={{ fontWeight:700, marginBottom:4 }}>📅 Historique</div>
@@ -369,8 +616,6 @@ function StatutModal({ offer, current, onSave, onClose }) {
               ))}
             </div>
           )}
-
-          {/* Boutons */}
           <div style={{ display:'flex', gap:10, marginTop:16 }}>
             <button onClick={onClose} style={{
               flex:1, padding:'10px', borderRadius:8, border:`1.5px solid ${C.greyMid}`,
@@ -381,6 +626,133 @@ function StatutModal({ offer, current, onSave, onClose }) {
               background:C.navy, color:'#fff', fontWeight:700, cursor:'pointer', fontSize:'.9rem'
             }}>💾 Enregistrer</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : MODAL PROFIL
+// ══════════════════════════════════════════════════════════════════
+function ProfileModal({ profile, onSave, onClose, isFirst }) {
+  const [form, setForm] = useState({...profile});
+  const upd = (k, v) => setForm(prev => ({...prev, [k]: v}));
+
+  const fields = [
+    ['nom',        '👤 Nom complet'],
+    ['specialite', '🏢 Spécialité / Secteur'],
+    ['exp',        '📈 Années d\'expérience'],
+    ['contrat',    '📋 Type de contrat recherché'],
+    ['remote',     '🌍 Modalités'],
+    ['dispo',      '📅 Disponibilité'],
+    ['tjmMin',     '💰 TJM min (€/j)'],
+    ['tjmMax',     '💰 TJM max (€/j)'],
+  ];
+
+  return (
+    <div className="no-print" onClick={isFirst ? undefined : onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:1100,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:16
+    }}>
+      <div onClick={e=>e.stopPropagation()} className="modal-anim" style={{
+        background:'#fff', borderRadius:16, width:'100%', maxWidth:500,
+        maxHeight:'90vh', overflow:'auto',
+        boxShadow:'0 20px 60px rgba(0,0,0,.3)'
+      }}>
+        <div style={{ background:C.navy, padding:'16px 20px', borderRadius:'16px 16px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ color:C.gold, fontWeight:700 }}>👤 Mon profil</div>
+            {isFirst && <div style={{ color:'rgba(255,255,255,.6)', fontSize:'.75rem', marginTop:2 }}>Personnalisez le dashboard à votre profil</div>}
+          </div>
+          {!isFirst && <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer' }}>✕</button>}
+        </div>
+        <div style={{ padding:'16px 20px 20px' }}>
+          {fields.map(([k, l]) => (
+            <div key={k} style={{ marginBottom:12 }}>
+              <div style={{ fontSize:'.72rem', fontWeight:700, color:C.textSub, textTransform:'uppercase', letterSpacing:.4, marginBottom:4 }}>{l}</div>
+              <input value={form[k] || ''} onChange={e => upd(k, e.target.value)} style={{
+                width:'100%', padding:'9px 12px', borderRadius:8,
+                border:`1.5px solid ${C.greyMid}`, fontFamily:'inherit', fontSize:'.85rem',
+                outline:'none', color:C.text, transition:'border .15s'
+              }} />
+            </div>
+          ))}
+          <div style={{ fontSize:'.75rem', color:C.textSub, background:C.grey, padding:'8px 12px', borderRadius:8, marginBottom:14 }}>
+            💡 Ces informations sont utilisées pour générer vos lettres de motivation automatiquement.
+          </div>
+          <button onClick={() => onSave(form)} style={{
+            width:'100%', padding:'11px', borderRadius:8, border:'none',
+            background:C.navy, color:'#fff', fontWeight:700, cursor:'pointer', fontSize:'.9rem'
+          }}>💾 Enregistrer mon profil</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT : MODAL MOTS-CLÉS LINKEDIN
+// ══════════════════════════════════════════════════════════════════
+function KeywordsModal({ onClose, onToast }) {
+  const [active, setActive] = useState('kyc');
+  const sector = KEYWORDS_BY_SECTOR[active];
+
+  const copyAll = async () => {
+    await navigator.clipboard.writeText(sector.keywords.join(' · '));
+    onToast('Mots-clés copiés !', 'success');
+  };
+
+  return (
+    <div className="no-print" onClick={onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:16
+    }}>
+      <div onClick={e=>e.stopPropagation()} className="modal-anim" style={{
+        background:'#fff', borderRadius:16, width:'100%', maxWidth:580,
+        maxHeight:'85vh', display:'flex', flexDirection:'column',
+        boxShadow:'0 20px 60px rgba(0,0,0,.25)'
+      }}>
+        <div style={{ background:C.navy, padding:'16px 20px', borderRadius:'16px 16px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ color:C.gold, fontWeight:700 }}>🔑 Mots-clés LinkedIn par secteur</div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'#fff', borderRadius:8, width:30, height:30, cursor:'pointer' }}>✕</button>
+        </div>
+
+        {/* Onglets secteurs */}
+        <div style={{ padding:'12px 20px', borderBottom:`1px solid ${C.greyMid}`, display:'flex', gap:8, flexWrap:'wrap' }}>
+          {Object.entries(KEYWORDS_BY_SECTOR).map(([k, v]) => (
+            <button key={k} onClick={() => setActive(k)} style={{
+              padding:'6px 14px', borderRadius:20, border:'none', cursor:'pointer',
+              fontSize:'.78rem', fontWeight:700,
+              background: active===k ? C.navy : C.grey,
+              color: active===k ? '#fff' : C.textSub,
+              transition:'all .15s'
+            }}>{v.label.split(' ').slice(0,2).join(' ')}</button>
+          ))}
+        </div>
+
+        <div style={{ flex:1, overflow:'auto', padding:'16px 20px' }}>
+          <div style={{ fontWeight:700, color:C.navy, marginBottom:12, fontSize:'.9rem' }}>{sector.label}</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
+            {sector.keywords.map((kw, i) => (
+              <span key={i} style={{
+                background:C.grey, color:C.navy, padding:'5px 12px',
+                borderRadius:20, fontSize:'.82rem', fontWeight:600,
+                border:`1px solid ${C.greyMid}`, cursor:'default'
+              }}>{kw}</span>
+            ))}
+          </div>
+          <div style={{ background:'#EEF4FB', border:`1px solid #D6E4F0`, borderRadius:8, padding:'10px 14px', fontSize:'.78rem', color:C.navy, lineHeight:1.6 }}>
+            <strong>💡 Comment les utiliser :</strong><br/>
+            Ajoutez ces mots-clés dans vos sections <strong>Compétences</strong> et <strong>À propos</strong> sur LinkedIn. Ils améliorent votre visibilité dans les recherches de recruteurs et les alertes automatiques.
+          </div>
+        </div>
+
+        <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.greyMid}` }}>
+          <button onClick={copyAll} style={{
+            width:'100%', padding:'9px', borderRadius:8, border:'none',
+            background:C.blue, color:'#fff', fontWeight:700, cursor:'pointer', fontSize:'.85rem'
+          }}>📋 Copier tous les mots-clés</button>
         </div>
       </div>
     </div>
@@ -402,6 +774,11 @@ function OfferCard({ offer, statut, onMessage, onStatut }) {
   const remoteBg = offer.remote.includes('Full Remote') ? '#E2EFDA'
     : offer.remote.toLowerCase().includes('hybride') ? '#FCE4D6' : '#F3E8FF';
 
+  // Alerte relance
+  const daysSince  = getDaysSince(statut.date);
+  const needRelance = statut.statut === 'Contacté' && daysSince !== null && daysSince >= 7;
+  const sansRepLong = statut.statut === 'Sans réponse' && daysSince !== null && daysSince >= 14;
+
   return (
     <div className="card-anim" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{
       background: excluded ? '#f5f5f5' : '#fff',
@@ -413,6 +790,17 @@ function OfferCard({ offer, statut, onMessage, onStatut }) {
       borderTop:`3px solid ${excluded ? '#ccc' : cat.color}`,
       opacity: excluded ? 0.55 : 1,
     }}>
+      {/* Alerte relance */}
+      {(needRelance || sansRepLong) && (
+        <div className="relance-pulse" style={{
+          background:'#FFF3CD', borderBottom:'1px solid #FFC107',
+          padding:'5px 14px', fontSize:'.73rem', fontWeight:700, color:'#856404',
+          display:'flex', alignItems:'center', gap:6
+        }}>
+          ⏰ {needRelance ? `À relancer — ${daysSince}j sans réponse` : `Sans réponse depuis ${daysSince}j`}
+        </div>
+      )}
+
       {/* Header carte */}
       <div style={{ padding:'14px 16px 10px', background:`linear-gradient(135deg, ${cat.bg} 0%, #fff 100%)` }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8, gap:8 }}>
@@ -446,10 +834,9 @@ function OfferCard({ offer, statut, onMessage, onStatut }) {
           <span style={{ fontSize:'.7rem', color:C.navy, background:C.greyMid, padding:'2px 8px', borderRadius:12, fontWeight:600 }}>Modèle {offer.modele}</span>
         </div>
 
-        {/* Statut + date + notes */}
         {statut.date && (
           <div style={{ fontSize:'.73rem', color:C.textSub, marginBottom:4 }}>
-            Mis à jour le <strong>{statut.date}</strong>
+            Mis à jour le <strong>{statut.date}</strong>{daysSince !== null && ` (${daysSince}j)`}
           </div>
         )}
         {statut.notes && (
@@ -465,15 +852,15 @@ function OfferCard({ offer, statut, onMessage, onStatut }) {
       <div style={{ padding:'10px 16px 14px', borderTop:`1px solid ${C.greyMid}`, display:'flex', gap:8 }}>
         <button onClick={() => onMessage(offer)} style={{
           flex:1, padding:'8px 0', borderRadius:8, border:'none',
-          background:C.navy, color:'#fff', fontWeight:700, fontSize:'.8rem', cursor:'pointer'
+          background:C.navy, color:'#fff', fontWeight:700, fontSize:'.78rem', cursor:'pointer'
         }}>📋 Message</button>
         <button onClick={() => onStatut(offer)} style={{
           flex:1, padding:'8px 0', borderRadius:8, border:`1.5px solid ${C.navy}`,
-          background:'#fff', color:C.navy, fontWeight:700, fontSize:'.8rem', cursor:'pointer'
+          background:'#fff', color:C.navy, fontWeight:700, fontSize:'.78rem', cursor:'pointer'
         }}>🔄 Statut</button>
         <a href={offer.lien} target="_blank" rel="noreferrer" style={{
           flex:1, padding:'8px 0', borderRadius:8, border:`1.5px solid ${C.greyMid}`,
-          background:C.grey, color:C.textSub, fontWeight:700, fontSize:'.8rem',
+          background:C.grey, color:C.textSub, fontWeight:700, fontSize:'.78rem',
           textDecoration:'none', textAlign:'center', display:'block'
         }} title={offer.lienNote||''}>
           {offer.lienNote ? '🔗 ⚠️' : '🔗 Offre'}
@@ -495,37 +882,54 @@ function InfoItem({ label, value, highlight }) {
 // ══════════════════════════════════════════════════════════════════
 // COMPOSANT : HEADER
 // ══════════════════════════════════════════════════════════════════
-function Header({ stats, onExport, exporting }) {
+function Header({ stats, profile, onExport, exporting, onPrint, onProfile, onKeywords }) {
   return (
-    <div style={{
+    <div className="no-print" style={{
       background:`linear-gradient(135deg, ${C.navy} 0%, #2E4A7A 100%)`,
       padding:'0 24px', boxShadow:'0 4px 20px rgba(31,56,100,.3)'
     }}>
       {/* Top row */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 0 12px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 0 12px', flexWrap:'wrap', gap:10 }}>
         <div>
           <div style={{ color:C.gold, fontWeight:800, fontSize:'1.15rem', letterSpacing:.3 }}>
             📋 VEILLE MISSIONS FREELANCE
           </div>
           <div style={{ color:'rgba(255,255,255,.65)', fontSize:'.75rem', marginTop:2 }}>
-            Vanessa De Decker · DMOS ⭐ · KYC/LCB-FT · Full Remote · Disponible mai 2026
+            {profile.nom} · {profile.specialite} · {profile.remote} · Disponible {profile.dispo}
           </div>
         </div>
-        <button onClick={onExport} disabled={exporting} style={{
-          padding:'9px 16px', borderRadius:9, border:'none',
-          background: exporting ? '#ccc' : C.gold,
-          color: exporting ? '#888' : C.navy,
-          fontWeight:800, fontSize:'.8rem', cursor: exporting ? 'default' : 'pointer',
-          display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap'
-        }}>
-          {exporting ? '⏳ Export...' : '📊 Exporter Excel'}
-        </button>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          <button onClick={onKeywords} style={{
+            padding:'8px 12px', borderRadius:9, border:'none',
+            background:'rgba(255,255,255,.15)', color:'#fff',
+            fontWeight:700, fontSize:'.78rem', cursor:'pointer'
+          }}>🔑 Mots-clés</button>
+          <button onClick={onProfile} style={{
+            padding:'8px 12px', borderRadius:9, border:'none',
+            background:'rgba(255,255,255,.15)', color:'#fff',
+            fontWeight:700, fontSize:'.78rem', cursor:'pointer'
+          }}>👤 Profil</button>
+          <button onClick={onPrint} style={{
+            padding:'8px 12px', borderRadius:9, border:'none',
+            background:'rgba(255,255,255,.15)', color:'#fff',
+            fontWeight:700, fontSize:'.78rem', cursor:'pointer'
+          }}>🖨️ PDF</button>
+          <button onClick={onExport} disabled={exporting} style={{
+            padding:'9px 16px', borderRadius:9, border:'none',
+            background: exporting ? '#ccc' : C.gold,
+            color: exporting ? '#888' : C.navy,
+            fontWeight:800, fontSize:'.8rem', cursor: exporting ? 'default' : 'pointer',
+            display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap'
+          }}>
+            {exporting ? '⏳ Export...' : '📊 Excel'}
+          </button>
+        </div>
       </div>
 
       {/* Stat cards */}
       <div style={{ display:'flex', gap:10, paddingBottom:16, flexWrap:'wrap' }}>
         {[
-          { n: `${stats.actives}/${stats.total}`, label:'Actives', color:'rgba(255,255,255,.9)', sub:'rgba(255,255,255,.5)' },
+          { n: `${stats.actives}/${stats.total}`, label:'Actives',     color:'rgba(255,255,255,.9)', sub:'rgba(255,255,255,.5)' },
           { n: stats.contacte,  label:'Contactées',  color:'#86efac', sub:'#4ade80' },
           { n: stats.relance,   label:'Relancées',   color:'#93c5fd', sub:'#60a5fa' },
           { n: stats.entretien, label:'Entretiens',  color:'#d8b4fe', sub:'#c084fc' },
@@ -557,10 +961,8 @@ function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, sea
   ];
 
   return (
-    <div style={{ background:'#fff', borderBottom:`1px solid ${C.greyMid}`, padding:'12px 24px', position:'sticky', top:0, zIndex:100, boxShadow:'0 2px 8px rgba(0,0,0,.06)' }}>
+    <div className="no-print" style={{ background:'#fff', borderBottom:`1px solid ${C.greyMid}`, padding:'12px 24px', position:'sticky', top:0, zIndex:100, boxShadow:'0 2px 8px rgba(0,0,0,.06)' }}>
       <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-
-        {/* Recherche */}
         <div style={{ position:'relative', flex:'1 1 200px', minWidth:180 }}>
           <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:C.textSub, fontSize:'.85rem' }}>🔍</span>
           <input
@@ -579,8 +981,6 @@ function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, sea
             }}>✕</button>
           )}
         </div>
-
-        {/* Filtres catégories */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {cats.map(c => (
             <button key={c.key} onClick={() => { setCatFilter(c.key); setStatutFilter('all'); }} style={{
@@ -591,8 +991,6 @@ function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, sea
             }}>{c.label}</button>
           ))}
         </div>
-
-        {/* Filtres statut */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[['all','📋 Toutes'],['active','✅ Contactées'],['pending','🕐 En attente']].map(([k,l]) => (
             <button key={k} onClick={() => { setStatutFilter(k); setCatFilter('all'); }} style={{
@@ -603,8 +1001,6 @@ function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, sea
             }}>{l}</button>
           ))}
         </div>
-
-        {/* Compteur */}
         <div style={{ fontSize:'.75rem', color:C.textSub, whiteSpace:'nowrap', marginLeft:'auto' }}>
           {shown === total ? `${total} offre${total>1?'s':''}` : `${shown} / ${total}`}
         </div>
@@ -619,24 +1015,19 @@ function FilterBar({ catFilter, setCatFilter, statutFilter, setStatutFilter, sea
 async function doExport(statuts) {
   const today = new Date().toLocaleDateString('fr-FR');
   const fname = `Suivi_Export_${today.replace(/\//g,'-')}.xlsx`;
-
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dashboard Vanessa';
   const ws = wb.addWorksheet('🔍 Suivi Missions', { views:[{ state:'frozen', ySplit:3 }] });
-
   ws.columns = [
     {key:'id',width:6},{key:'titre',width:38},{key:'plat',width:14},
     {key:'entr',width:26},{key:'sect',width:20},{key:'type',width:12},
     {key:'tjm',width:18},{key:'rem',width:26},{key:'stat',width:16},
     {key:'date',width:14},{key:'notes',width:30},{key:'lien',width:50},
   ];
-
   const solidFill = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
   const thinBorder = () => { const s={style:'thin',color:{argb:'FFCCCCCC'}}; return {top:s,bottom:s,left:s,right:s}; };
   const medBorder  = () => { const s={style:'medium',color:{argb:'FF162B50'}}; return {top:s,bottom:s,left:s,right:s}; };
-
   const NAVY='FF1F3864', BLUEMID='FF2E75B6', GOLD='FFC9A227', WHITE='FFFFFFFF', ODD='FFEEF4FB';
-
   const SS = {
     'À contacter' :{ fill:'FFFFF3CD', font:'FF856404' },
     'Contacté'    :{ fill:'FFD4EDDA', font:'FF155724' },
@@ -648,27 +1039,19 @@ async function doExport(statuts) {
     'Refus'       :{ fill:'FFF8D7DA', font:'FF721C24' },
     'Sans réponse':{ fill:'FFE2E3E5', font:'FF383D41' },
   };
-
-  // Ligne 1 — titre
   const r1 = ws.addRow(['📋   SUIVI MISSIONS FREELANCE  ·  Vanessa De Decker  |  DMOS · KYC/LCB-FT  |  Full Remote',...Array(11).fill('')]);
   r1.height = 38; ws.mergeCells(1,1,1,12);
   const c1 = ws.getCell('A1');
   c1.fill=solidFill(NAVY); c1.font={name:'Calibri',bold:true,size:15,color:{argb:GOLD}};
   c1.alignment={horizontal:'center',vertical:'middle'}; c1.border=medBorder();
-
-  // Ligne 2 — sous-titre
   const r2 = ws.addRow([`Dernière mise à jour : ${today}   ·   Veille FREELANCE  ·  Full Remote / Hybride`,...Array(11).fill('')]);
   r2.height=24; ws.mergeCells(2,1,2,12);
   const c2=ws.getCell('A2');
   c2.fill=solidFill(BLUEMID); c2.font={name:'Calibri',size:10,color:{argb:WHITE}};
   c2.alignment={horizontal:'center',vertical:'middle'};
-
-  // Ligne 3 — en-têtes
   const r3 = ws.addRow(['ID','Titre','Plateforme','Entreprise','Secteur','Type','TJM','Remote','Statut','Date statut','Notes','Lien']);
   r3.height=30;
   r3.eachCell(cell=>{ cell.fill=solidFill(NAVY); cell.font={name:'Calibri',bold:true,size:10,color:{argb:WHITE}}; cell.alignment={horizontal:'center',vertical:'middle'}; cell.border=medBorder(); });
-
-  // Données
   OFFERS.forEach((o,ri) => {
     const st = statuts[o.id] || { statut:'À contacter', date:'', notes:'' };
     const bg = ri%2===0 ? ODD : 'FFFFFFFF';
@@ -678,7 +1061,6 @@ async function doExport(statuts) {
     else if((o.secteur||'').includes('Assurance')){ sF='FFEDE0F5'; sFt='FF4A1870'; }
     let rF=o.remote.includes('Full Remote')?'FFD4EDDA':o.remote.toLowerCase().includes('hybride')?'FFFFE5D0':'FFFFF3CD';
     let rFt=o.remote.includes('Full Remote')?'FF155724':o.remote.toLowerCase().includes('hybride')?'FF7B3A00':'FF856404';
-
     const row = ws.addRow([o.id,o.titre,o.plateforme,o.entreprise,o.secteur,o.type||'',o.tjm,o.remote,st.statut,st.date||'',st.notes||'',o.lien]);
     row.height=36;
     row.eachCell({includeEmpty:true},(cell,ci)=>{
@@ -697,7 +1079,6 @@ async function doExport(statuts) {
       cell.border=thinBorder();
     });
   });
-
   const buf  = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url  = URL.createObjectURL(blob);
@@ -707,17 +1088,68 @@ async function doExport(statuts) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// TABLE D'IMPRESSION PDF
+// ══════════════════════════════════════════════════════════════════
+function PrintTable({ statuts, profile }) {
+  const today = new Date().toLocaleDateString('fr-FR');
+  return (
+    <div className="print-only">
+      <div className="print-header">
+        <h1>📋 Suivi Missions Freelance — {profile.nom}</h1>
+        <p>{profile.specialite} · {profile.remote} · Disponible {profile.dispo} · Exporté le {today}</p>
+      </div>
+      <table className="print-table">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Plateforme</th>
+            <th>Secteur</th>
+            <th>TJM</th>
+            <th>Remote</th>
+            <th>Statut</th>
+            <th>Date</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {OFFERS.map(o => {
+            const st = statuts[o.id] || { statut:'À contacter', date:'', notes:'' };
+            return (
+              <tr key={o.id}>
+                <td style={{fontWeight:600}}>{o.titre}</td>
+                <td>{o.plateforme}</td>
+                <td>{o.secteur}</td>
+                <td style={{fontWeight:600,color:'#1E7145'}}>{o.tjm}</td>
+                <td>{o.remote}</td>
+                <td style={{fontWeight:700}}>{STATUT_META[st.statut]?.icon} {st.statut}</td>
+                <td>{st.date}</td>
+                <td>{st.notes}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
 // APP PRINCIPALE
 // ══════════════════════════════════════════════════════════════════
 function App() {
-  const [statuts,    setStatuts]    = useState(loadStatuts);
-  const [catFilter,  setCatFilter]  = useState('all');
-  const [statFilter, setStatFilter] = useState('all');
-  const [search,     setSearch]     = useState('');
-  const [msgOffer,   setMsgOffer]   = useState(null);
-  const [statOffer,  setStatOffer]  = useState(null);
-  const [toasts,     setToasts]     = useState([]);
-  const [exporting,  setExporting]  = useState(false);
+  const [statuts,      setStatuts]      = useState(loadStatuts);
+  const [profile,      setProfile]      = useState(() => loadProfile() || DEFAULT_PROFILE);
+  const [catFilter,    setCatFilter]    = useState('all');
+  const [statFilter,   setStatFilter]   = useState('all');
+  const [search,       setSearch]       = useState('');
+  const [msgOffer,     setMsgOffer]     = useState(null);
+  const [statOffer,    setStatOffer]    = useState(null);
+  const [toasts,       setToasts]       = useState([]);
+  const [exporting,    setExporting]    = useState(false);
+  const [showProfile,  setShowProfile]  = useState(false);
+  const [showKeywords, setShowKeywords] = useState(false);
+  const [showStats,    setShowStats]    = useState(true);
+  const [firstVisit,   setFirstVisit]   = useState(() => !localStorage.getItem(PROFILE_KEY));
   const toastId = useRef(0);
 
   const addToast = useCallback((msg, type='info') => {
@@ -741,6 +1173,14 @@ function App() {
     setStatOffer(null);
   }, [addToast]);
 
+  const handleSaveProfile = useCallback((p) => {
+    persistProfile(p);
+    setProfile(p);
+    setShowProfile(false);
+    setFirstVisit(false);
+    addToast('Profil enregistré !', 'success');
+  }, [addToast]);
+
   // Filtrage
   const visible = useMemo(() => {
     let list = OFFERS;
@@ -749,16 +1189,13 @@ function App() {
       const s = (statuts[o.id]||{}).statut||'À contacter';
       return ['Contacté','Relancé','Entretien','Proposition'].includes(s);
     });
-    // "En attente" = uniquement les actives sans "Non contacté"
     if (statFilter === 'pending') list = list.filter(o => {
       const s = (statuts[o.id]||{}).statut||'À contacter';
       return ['À contacter','Sans réponse'].includes(s);
     });
-    // "Exclues" = uniquement les "Non contacté"
     else if (statFilter === 'exclus') list = list.filter(o => {
       return (statuts[o.id]||{}).statut === 'Non contacté';
     });
-    // "Toutes" / "Contactées" = tout afficher (non contacté apparaît grisé)
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(o =>
@@ -790,17 +1227,30 @@ function App() {
     setExporting(true);
     try {
       await doExport(statuts);
-      addToast('Fichier Excel exporté avec succès !', 'success');
+      addToast('Fichier Excel exporté !', 'success');
     } catch(e) {
-      addToast('Erreur lors de l\'export', 'error');
-      console.error(e);
+      addToast("Erreur lors de l'export", 'error');
     }
     setExporting(false);
   };
 
+  const handlePrint = () => {
+    addToast('Ouverture impression PDF...', 'info');
+    setTimeout(() => window.print(), 500);
+  };
+
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-      <Header stats={stats} onExport={handleExport} exporting={exporting} />
+      <Header
+        stats={stats}
+        profile={profile}
+        onExport={handleExport}
+        exporting={exporting}
+        onPrint={handlePrint}
+        onProfile={() => setShowProfile(true)}
+        onKeywords={() => setShowKeywords(true)}
+      />
+      <StatsPanel statuts={statuts} visible={showStats} onToggle={() => setShowStats(v=>!v)} />
       <FilterBar
         catFilter={catFilter} setCatFilter={setCatFilter}
         statutFilter={statFilter} setStatutFilter={setStatFilter}
@@ -809,7 +1259,7 @@ function App() {
       />
 
       {/* Grille cartes */}
-      <main style={{ flex:1, padding:'20px 24px', maxWidth:1400, margin:'0 auto', width:'100%' }}>
+      <main className="no-print" style={{ flex:1, padding:'20px 24px', maxWidth:1400, margin:'0 auto', width:'100%' }}>
         {visible.length === 0 ? (
           <div style={{ textAlign:'center', padding:'60px 20px', color:C.textSub }}>
             <div style={{ fontSize:'3rem', marginBottom:12 }}>🔍</div>
@@ -817,11 +1267,7 @@ function App() {
             <div style={{ fontSize:'.85rem' }}>Essayez d'autres filtres ou effacez la recherche</div>
           </div>
         ) : (
-          <div style={{
-            display:'grid',
-            gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))',
-            gap:18
-          }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))', gap:18 }}>
             {visible.map(o => (
               <OfferCard
                 key={o.id}
@@ -835,14 +1281,17 @@ function App() {
         )}
       </main>
 
+      {/* Table impression PDF */}
+      <PrintTable statuts={statuts} profile={profile} />
+
       {/* Footer */}
-      <footer style={{ padding:'14px 24px', background:C.navy, color:'rgba(255,255,255,.5)', fontSize:'.72rem', textAlign:'center' }}>
-        Vanessa De Decker · DMOS ⭐ · Gestion Contrats ⭐ · KYC/LCB-FT · Full Remote · Freelance · CDI · CDD · Intérim
+      <footer className="no-print" style={{ padding:'14px 24px', background:C.navy, color:'rgba(255,255,255,.5)', fontSize:'.72rem', textAlign:'center' }}>
+        {profile.nom} · DMOS ⭐ · Gestion Contrats ⭐ · KYC/LCB-FT · Full Remote · Freelance · CDI · CDD · Intérim
         <br/><span style={{color:'rgba(255,255,255,.3)'}}>Statuts sauvegardés dans ce navigateur · Les liens ⚠️ redirigent vers la page générale — vérifier manuellement</span>
       </footer>
 
       {/* Modals */}
-      {msgOffer && <MessageModal offer={msgOffer} onClose={() => setMsgOffer(null)} onToast={addToast} />}
+      {msgOffer && <MessageModal offer={msgOffer} profile={profile} onClose={() => setMsgOffer(null)} onToast={addToast} />}
       {statOffer && (
         <StatutModal
           offer={statOffer}
@@ -851,8 +1300,16 @@ function App() {
           onClose={() => setStatOffer(null)}
         />
       )}
+      {(showProfile || firstVisit) && (
+        <ProfileModal
+          profile={profile}
+          onSave={handleSaveProfile}
+          onClose={() => setShowProfile(false)}
+          isFirst={firstVisit}
+        />
+      )}
+      {showKeywords && <KeywordsModal onClose={() => setShowKeywords(false)} onToast={addToast} />}
 
-      {/* Toasts */}
       <Toast toasts={toasts} />
     </div>
   );
